@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "mpc.h"
 #include <editline/readline.h>
 
@@ -8,9 +9,9 @@ long eval_op(long x, char* op, long y);
 
 int main(int argc, char *argv[])
 {
-  printf("Lispy version 0.0.0.0.1");
+  printf("Lispy version 0.0.0.0.1\n");
   printf("Press Ctrl-c para sair\n");
-  	mpc_result_t r;
+  mpc_result_t r;
 	
   mpc_parser_t* Numero = mpc_new("numero");
   mpc_parser_t* Operador = mpc_new("operador");
@@ -21,7 +22,7 @@ int main(int argc, char *argv[])
 			" numero   : /-?[0-9]+/ ; "
 			" operador : '+' | '-' | '*' | '/' | '%' ; "
 			" expr     : <numero> | '(' <operador> <expr>+ ')' ; "
-			" lispy    : /^/ '(' <operador> <expr>+ ')' /$/ ;            ",
+			" lispy    :  /^/ <operador> <expr>+ /$/ ;  ",
 			Numero, Operador, Expr, Lispy, NULL);
   while (1) {
 	mpc_ast_t* a;
@@ -33,16 +34,9 @@ int main(int argc, char *argv[])
 	if (mpc_parse("<stdin>", input, Lispy, &r)) {
 	  /* load from ast output */
 	  a = r.output;
-	  printf("Tag: %s\n", a->tag);
-	  printf("Contents: %s\n", a->contents);
-	  printf("Number of Children: %i\n", a->children_num);
-
-	  c0 = a->children[0];
-	  printf("First Children Tag: %s\n", c0->tag);
-	  printf("First Children Contents: %s\n", c0->contents);
-	  printf("First Children Children_num: %i\n", c0->children_num);
-	  mpc_ast_print(r.output);
-	  mpc_ast_delete(r.output);
+	  long resultado = eval(a);
+	  printf("%li\n", resultado);
+	  mpc_ast_delete(a);
 	} else {
 	  mpc_err_print(r.error);
 	  mpc_err_delete(r.error);
@@ -53,27 +47,41 @@ int main(int argc, char *argv[])
   return 0;
 }
 
-long eval(mpc_ast_t* t) {
-  if(strstr(t->tag, "numero")) {
-	return atoi(t->contents);
-  }
-  /* TODO não sei se este pedaço vai funcionar direito */
-  char* op = t->children[1]->contents;
-
-  long x = eval(t->children[2]);
-
-  int i = 3;
-  while (strstr(t->children[i]->tag, "expr")) {
-	x = eval_op(x, op, eval(t->children[i]));
-	i++;
-  }
-  return x;
-}
-
 long eval_op(long x, char* op, long y) {
   if (strcmp(op, "+") == 0) { return x + y; }
   if (strcmp(op, "-") == 0) { return x - y; }
   if (strcmp(op, "*") == 0) { return x * y; }
   if (strcmp(op, "/") == 0) { return x / y; }
   return 0;
+}
+
+long eval(mpc_ast_t* q) {
+  long x = 0, y = 0;
+  int i = 0;
+  int max = q->children_num;
+  mpc_ast_t* t = q;
+  /* se for o primeiro com a tag > */
+  /* itera até achar a tag operador */
+  if(strstr(q->tag, ">")) {
+	/* acho que trocar isso daqui pra um do while */
+	while (!strstr(t->tag, "operador")) {
+	  t = q->children[i];
+	  i++;
+	  if (i == max)
+		break;
+	}
+  }
+  if(strstr(t->tag, "numero")) {
+	return atoi(t->contents);
+  }
+  char* op = t->contents;
+  puts(op);
+  x = eval(q->children[i]);
+
+  int j = i+1;
+  while (strstr(q->children[j]->tag, "expr")) {
+	x = eval_op(x, op, eval(q->children[j]));
+	j++;
+  }
+  return x;
 }
