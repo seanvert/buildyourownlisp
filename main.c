@@ -13,8 +13,8 @@ typedef struct {
   long num;
   int err;
 } lval;
-long eval(mpc_ast_t* t);
-long eval_op(long x, char* op, long y);
+lval eval(mpc_ast_t* t);
+lval eval_op(lval x, char* op, lval y);
 lval lval_num(long x);
 lval lval_err(int x);
 void lval_print(lval v);
@@ -46,9 +46,9 @@ int main(int argc, char *argv[])
 	if (mpc_parse("<stdin>", input, Lispy, &r)) {
 	  /* load from ast output */
 	  a = r.output;
-	  long resultado = eval(a);
-	  printf("%li\n", resultado);
-	  mpc_ast_delete(a);
+	  lval resultado = eval(a);
+	  lval_println(resultado);
+	  mpc_ast_delete(r.output);
 	} else {
 	  mpc_err_print(r.error);
 	  mpc_err_delete(r.error);
@@ -59,18 +59,40 @@ int main(int argc, char *argv[])
   return 0;
 }
 
-long eval_op(long x, char* op, long y) {
-  if (strcmp(op, "+") == 0) { return x + y; }
-  if (strcmp(op, "-") == 0) { return x - y; }
-  if (strcmp(op, "*") == 0) { return x * y; }
-  if (strcmp(op, "/") == 0) { return x / y; }
-  if (strcmp(op, "%") == 0) { return x % y; }
-  if (strcmp(op, "^") == 0) { return pow(x, y); }
-  return 0;
+lval eval_op(lval x, char* op, lval y) {
+  if (x.type == LVAL_ERR) {
+	return x;
+  }
+  if (y.type == LVAL_ERR) {
+	return y;
+  }
+  if (strcmp(op, "+") == 0)	{
+	return lval_num(x.num + y.num);
+  }
+  if (strcmp(op, "-") == 0)	{
+	return lval_num(x.num - y.num);
+  }
+  if (strcmp(op, "*") == 0)	{
+	return lval_num(x.num * y.num);
+  }
+  if (strcmp(op, "/") == 0)	{
+	if (y.num == 0) {
+	  return lval_err(LERR_DIV_ZERO);
+	} else {
+	  return lval_num(x.num / y.num);
+	}
+  }
+  if (strcmp(op, "%") == 0)	{
+	return lval_num(x.num % y.num);
+  }
+  if (strcmp(op, "^") == 0)	{
+	return lval_num(pow(x.num, y.num));
+  }
+  return lval_err(LERR_BAD_OP);
 }
 
-long eval(mpc_ast_t* q) {
-  long x = 0;
+lval eval(mpc_ast_t* q) {
+  /* TODO essa função está meio bagunçada, depois preciso mexer nela */
   int i = 0;
   int max = q->children_num;
   mpc_ast_t* t = q;
@@ -86,10 +108,17 @@ long eval(mpc_ast_t* q) {
 	}
   }
   if(strstr(t->tag, "numero")) {
-	return atoi(t->contents);
+	/* In this case we use the strtol function to convert from string to long. This allows us to check a special variable errno to ensure the conversion goes correctly. This is a more robust way to convert numbers than our previous method using atoi. */
+	errno = 0;
+	long x = strtol(t->contents, NULL, 10);
+	if (errno != ERANGE) {
+	  return lval_num(x);
+	} else {
+	  lval_err(LERR_BAD_NUM);
+	}
   }
   char* op = t->contents;
-  x = eval(q->children[i]);
+  lval x = eval(q->children[i]);
 
   int j = i+1;
   while (strstr(q->children[j]->tag, "expr")) {
