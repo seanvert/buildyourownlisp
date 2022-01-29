@@ -20,13 +20,12 @@ int main(int argc, char *argv[])
 
   mpca_lang(MPCA_LANG_DEFAULT,
 			" numero   : /-?[0-9]+/ ; "
-			" operador : '+' | '-' | '*' | '/' | '%' ; "
+			" operador : '+' | '-' | '*' | '/' | '%' | '^' ; "
 			" expr     : <numero> | '(' <operador> <expr>+ ')' ; "
 			" lispy    :  /^/ <operador> <expr>+ /$/ ;  ",
 			Numero, Operador, Expr, Lispy, NULL);
   while (1) {
 	mpc_ast_t* a;
-	mpc_ast_t* c0;
 	char* input = readline("lispy> ");
 
 	add_history(input);
@@ -52,11 +51,13 @@ long eval_op(long x, char* op, long y) {
   if (strcmp(op, "-") == 0) { return x - y; }
   if (strcmp(op, "*") == 0) { return x * y; }
   if (strcmp(op, "/") == 0) { return x / y; }
+  if (strcmp(op, "%") == 0) { return x % y; }
+  if (strcmp(op, "^") == 0) { return pow(x, y); }
   return 0;
 }
 
 long eval(mpc_ast_t* q) {
-  long x = 0, y = 0;
+  long x = 0;
   int i = 0;
   int max = q->children_num;
   mpc_ast_t* t = q;
@@ -75,7 +76,6 @@ long eval(mpc_ast_t* q) {
 	return atoi(t->contents);
   }
   char* op = t->contents;
-  puts(op);
   x = eval(q->children[i]);
 
   int j = i+1;
