@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
 			  " simbolo  : '+' | '-' | '*' | '/' | '%' | '^' ; "
 			  " sexpr    : '(' <expr>* ')' ; "
 			  " expr     : <numero> | <simbolo> | <sexpr> ; "
-			  " lispy    :  /^/ <operador> <expr>+ /$/ ;  ",
+			  " lispy    :  /^/ <expr>* /$/ ;  ",
 			  Numero, Simbolo, Sexpr, Expr, Lispy);
 	while (1) {
 		char* input = readline("lispy> ");
@@ -86,20 +86,21 @@ lval* lval_pop(lval* v, int i) {
 }
 
 lval* lval_take(lval* v, int i) {
-	lval* x = lval_pop(v, i);
-	lval_del(v);
-	return x;
+  lval* x = lval_pop(v, i);
+  lval_del(v);
+  return x;
 }
 
 lval* builtin_op(lval* a, char* op) {
 	for (int i = 0; i < a->contagem; i++) {
-		if (a->celula[i]->type != LVAL_NUM) {
+	  lval *p = a->celula[i];
+		if (p->type != LVAL_NUM) {
 			lval_del(a);
 			return lval_err("Nào pode ser utilizado sem números!");
 		}
 	}
 
-	lval* x = lval_pop(a, 0);
+	lval *x = lval_pop(a, 0);
 
 	if ((strcmp(op, "-") == 0) && a->contagem == 0) {
 		x->num = -x->num;
@@ -137,7 +138,8 @@ lval* lval_eval_sexpr(lval* v) {
 	}
 
 	for (int i = 0; i < v->contagem; i++) {
-		if (v->celula[i]->type == LVAL_ERR) {
+	  lval* p = v->celula[i];
+		if (p->type == LVAL_ERR) {
 			return lval_take(v, i);
 		}
 	}
